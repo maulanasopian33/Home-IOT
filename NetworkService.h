@@ -14,32 +14,9 @@ private:
   bool isConnected = false;
   bool otaReady = false;
 
-  void sendStatusToAPI(const char* statusAplikasi) {
-    if (WiFi.status() == WL_CONNECTED) {
-      HTTPClient http;
-      http.begin(API_URL);
-      http.addHeader("Content-Type", "application/json");
-
-      // Construct JSON payload
-      String payload = "{\"ip\":\"" + WiFi.localIP().toString() + "\",";
-      payload += "\"hostname\":\"" + String(OTA_HOSTNAME) + "\",";
-      payload += "\"status\":\"" + String(statusAplikasi) + "\"}";
-
-      int httpCode = http.POST(payload);
-      if (httpCode > 0) {
-        Serial.printf("[API] Sukses terkirim. Kode: %d\n", httpCode);
-      } else {
-        Serial.printf("[API] Gagal mengirim data. Error: %s\n", http.errorToString(httpCode).c_str());
-      }
-      http.end();
-    }
-  }
-
-    void initOTA() {
+  void initOTA() {
     ArduinoOTA.setHostname(OTA_HOSTNAME);
-    //ArduinoOTA.setPassword(OTA_PASSWORD);
     
-    // Tambahkan [this] agar lambda bisa mengakses fungsi di dalam class ini jika dibutuhkan nanti
     ArduinoOTA.onStart([]() { Serial.println("[OTA] Proses update dimulai..."); });
     ArduinoOTA.onEnd([]() { Serial.println("\n[OTA] Update Selesai!"); });
     ArduinoOTA.onError([](ota_error_t error) { Serial.printf("[OTA] Error[%u]\n", error); });
@@ -49,9 +26,41 @@ private:
     Serial.println("[OTA] Layanan siap menerima update.");
   }
         
-public:
+public: // <--- Semua fungsi di bawah ini sekarang bisa diakses dari Main.ino
+
+  // Fungsi pengirim tunggal (Sekarang sudah PUBLIC)
+  void sendDataToAPI(const char* statusAplikasi, String idSensor = "", float suhu = -999.0, float hum = -999.0) {
+    if (WiFi.status() == WL_CONNECTED) {
+      HTTPClient http;
+      http.begin(API_URL);
+      http.addHeader("Content-Type", "application/json");
+
+      // Format dasar JSON (Kirim IP, Hostname, Status)
+      String payload = "{";
+      payload += "\"ip\":\"" + WiFi.localIP().toString() + "\",";
+      payload += "\"hostname\":\"" + String(OTA_HOSTNAME) + "\",";
+      payload += "\"status\":\"" + String(statusAplikasi) + "\"";
+
+      // Jika ada data sensor, sisipkan ke payload
+      if (idSensor != "" && suhu != -999.0 && hum != -999.0) {
+        payload += ",\"idsensor\":\"" + idSensor + "\",";
+        payload += "\"suhu\":" + String(suhu, 1) + ",";
+        payload += "\"kelembapan\":" + String(hum, 1);
+      }
+
+      payload += "}";
+
+      int httpCode = http.POST(payload);
+      if (httpCode > 0) {
+        Serial.printf("[API] Sukses terkirim (%s). Kode: %d\n", statusAplikasi, httpCode);
+      } else {
+        Serial.printf("[API] Gagal mengirim data. Error: %s\n", http.errorToString(httpCode).c_str());
+      }
+      http.end();
+    }
+  }
+
   void begin() {
-    // Mode Non-Blocking aktif
     wm.setConfigPortalBlocking(false);
     
     Serial.println("[Network] Memulai layanan...");
@@ -63,10 +72,8 @@ public:
   }
 
   void handle() {
-    // Menjaga WiFiManager tetap berjalan di background
     wm.process(); 
 
-    // State machine sederhana untuk memantau status koneksi
     if (WiFi.status() == WL_CONNECTED) {
       if (!isConnected) {
         isConnected = true;
@@ -75,7 +82,9 @@ public:
         Serial.println(WiFi.localIP());
 
         initOTA();
-        sendStatusToAPI("ONLINE_STARTUP");
+        
+        // KORREKSI: Mengubah sendStatusToAPI menjadi sendDataToAPI
+        sendDataToAPI("ONLINE_STARTUP");
       }
 
       if (otaReady) {
