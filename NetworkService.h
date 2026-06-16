@@ -35,10 +35,11 @@ private:
     }
   }
 
-  void initOTA() {
+    void initOTA() {
     ArduinoOTA.setHostname(OTA_HOSTNAME);
-    ArduinoOTA.setPassword(OTA_PASSWORD);
+    //ArduinoOTA.setPassword(OTA_PASSWORD);
     
+    // Tambahkan [this] agar lambda bisa mengakses fungsi di dalam class ini jika dibutuhkan nanti
     ArduinoOTA.onStart([]() { Serial.println("[OTA] Proses update dimulai..."); });
     ArduinoOTA.onEnd([]() { Serial.println("\n[OTA] Update Selesai!"); });
     ArduinoOTA.onError([](ota_error_t error) { Serial.printf("[OTA] Error[%u]\n", error); });
@@ -47,7 +48,7 @@ private:
     otaReady = true;
     Serial.println("[OTA] Layanan siap menerima update.");
   }
-
+        
 public:
   void begin() {
     // Mode Non-Blocking aktif

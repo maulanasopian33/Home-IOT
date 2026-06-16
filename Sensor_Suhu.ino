@@ -1,3 +1,11 @@
+#include <AsyncUDP.h>
+#include <ESPmDNS.h>
+#include <WiFiUdp.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <ArduinoOTA.h>
+#include <WiFiManager.h> // Pastikan ini juga ada di file .ino utama
+
 #include "Config.h"
 #include "NetworkService.h"
 
@@ -35,3 +43,4 @@ void jalankanBlink() {
     digitalWrite(LED_PIN, ledState);
   }
 }
+        
