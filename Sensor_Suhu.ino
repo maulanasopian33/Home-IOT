@@ -6,6 +6,7 @@
 #include <ArduinoOTA.h>
 #include <WiFiManager.h> 
 #include <DHT.h>           // <-- TAMBAHKAN LIBRARY SENSOR DHT
+#include <LittleFS.h>      // <-- TAMBAHKAN LIBRARY PENYIMPANAN OFFLINE
 
 #include "Config.h"
 #include "NetworkService.h"
@@ -30,6 +31,13 @@ void setup() {
   Serial.begin(115200);
   pinMode(LED_PIN, OUTPUT);
   
+  // Inisialisasi File System (LittleFS)
+  if (!LittleFS.begin(true)) {
+    Serial.println("[Storage] Error: Gagal me-mount LittleFS!");
+  } else {
+    Serial.println("[Storage] LittleFS berhasil di-mount.");
+  }
+
   // 1. Jalankan infrastruktur jaringan di background
   network.begin();
 

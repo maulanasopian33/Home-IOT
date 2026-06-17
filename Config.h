@@ -14,6 +14,13 @@ const char* AP_NAME      = "ESP32-Config-AP";
 const char* API_URL = "https://maulanasopian.my.id/api.php"; 
 
 // ==========================================
+// PENGATURAN WAKTU (NTP)
+// ==========================================
+const char* NTP_SERVER = "pool.ntp.org";
+const long  GMT_OFFSET_SEC = 25200;  // WIB (UTC+7) -> 7 * 3600
+const int   DAYLIGHT_OFFSET_SEC = 0; // Tidak ada DST di Indonesia
+
+// ==========================================
 // PENGATURAN HARDWARE (PIN & PARAMETER)
 // ==========================================
 const int LED_PIN = 2;
