@@ -9,7 +9,7 @@
 #include "DHTService.h"
 #include "LEDService.h"
 
-#define WDT_TIMEOUT 30 // 30 Detik toleransi (DHT read 3 sensor bisa blocking 6-12 detik)
+#define WDT_TIMEOUT 30 // 30 Detik toleransi (network.begin() blocking max 10 detik di Core 0)
 
 // Inisialisasi layanan jaringan dan modul sensor
 NetworkService network;
@@ -34,12 +34,12 @@ void setup() {
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
   esp_task_wdt_config_t wdt_config = {
     .timeout_ms = WDT_TIMEOUT * 1000,
-    .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,    // Memantau semua core
+    .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,
     .trigger_panic = true
   };
   esp_task_wdt_init(&wdt_config);
 #else
-  esp_task_wdt_init(WDT_TIMEOUT, true); // true = panic (reboot)
+  esp_task_wdt_init(WDT_TIMEOUT, true);
 #endif
 
   // 2. Inisialisasi File System & Konfigurasi
@@ -50,14 +50,14 @@ void setup() {
   }
   appConfig.load(); // Load parameter dari LittleFS
 
-  // 3. Daftarkan callback sensor
+  // 3. Daftarkan callback sensor & inisialisasi hardware sensor
   dhtModule.onDataChange(onSensorChange);
-
-  // 4. Inisialisasi Service dasar
-  network.begin();
   dhtModule.begin();
 
-  // 5. Pembuatan FreeRTOS Tasks (Dual-Core)
+  // 4. Pembuatan FreeRTOS Tasks (Dual-Core)
+  //    PENTING: Tasks dibuat SEBELUM network.begin() agar sensor langsung berjalan
+  //    network.begin() (WiFiManager) dipanggil di dalam TaskNetwork sehingga
+  //    hanya memblok Core 0, tidak memblok TaskSensor di Core 1.
   xTaskCreatePinnedToCore(
     TaskNetwork,   // Fungsi task
     "TaskNetwork", // Nama task
@@ -79,6 +79,7 @@ void setup() {
   );
 
   Serial.println("[System] FreeRTOS Dual-Core Berhasil Berjalan!");
+  Serial.println("[System] Sensor mulai berjalan. WiFi diinisialisasi di latar belakang (Core 0)...");
 }
 
 // Loop utama Arduino tidak dipakai agar memori bersih
@@ -91,13 +92,21 @@ void loop() {
 // ==========================================
 
 void TaskNetwork(void *pvParameters) {
-  esp_task_wdt_add(NULL); // Daftarkan task ini ke sistem pengawas WDT
+  esp_task_wdt_add(NULL);
+
+  // network.begin() dipanggil di sini, di dalam task Core 0.
+  // Ini akan memblok Core 0 max ~10 detik (WiFiManager connect timeout).
+  // Core 1 (TaskSensor) tidak terpengaruh dan langsung membaca sensor.
+  esp_task_wdt_reset();
+  network.begin();
+  esp_task_wdt_reset();
+
   unsigned long previousHeartbeatMillis = 0;
 
   for(;;) {
     esp_task_wdt_reset(); // Beri makan WDT agar tidak reboot
     
-    // Proses semua infrastruktur jaringan (OTA, Sync Queue, Web Server)
+    // Proses semua infrastruktur jaringan (WiFiManager portal, OTA, Sync Queue, Web Server)
     network.handle();
 
     // Heartbeat Status API
@@ -117,12 +126,11 @@ void TaskSensor(void *pvParameters) {
 
   for(;;) {
     esp_task_wdt_reset(); // Feed WDT di awal loop
-    
-    // Baca sensor: DHT11 bisa blocking ~1-2 detik per sensor jika pin tidak ada sensor
-    // esp_task_wdt_reset() dipanggil di dalam DHTService::handle() per-sensor
+
+    // Baca sensor: esp_task_wdt_reset() dipanggil di dalam DHTService::handle() per-sensor
     dhtModule.handle();
     
-    esp_task_wdt_reset(); // Feed WDT lagi setelah selesai semua pembacaan sensor
+    esp_task_wdt_reset(); // Feed WDT lagi setelah selesai semua pembacaan
 
     // Logika Indikator LED Dinamis (Sudah Terpisah)
     ledIndicator.handle(WiFi.status() == WL_CONNECTED, network.getQueueCountFast());

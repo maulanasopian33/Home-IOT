@@ -15,6 +15,7 @@ struct DHTStruct {
   float lastHum;
   bool isAvailable;
   int failedReads;
+  unsigned long pauseUntilMs; // Jika > 0, sensor di-skip sampai millis() melewati nilai ini
   
   // Array untuk menyimpan sampel pembacaan (Moving Average)
   float tempHistory[5];

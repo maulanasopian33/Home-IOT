@@ -30,7 +30,9 @@ const int LED_PIN = 2;
 const long BLINK_INTERVAL = 500;
 
 // --- TAMBAHAN UNTUK DHT ---
-const long DHT_INTERVAL = 5000; // Baca sensor setiap 5 detik (mengurangi gagal baca dan self-heating)
+const long DHT_INTERVAL = 5000;   // Baca sensor setiap 5 detik
+const int  MAX_SENSOR_FAIL = 10;  // Gagal baca beruntun sebelum sensor di-pause (auto-pause)
+const long SENSOR_RETRY_MS = 60000; // Pause 60 detik sebelum auto-recovery dicoba lagi
 
 // Tentukan 3 pin GPIO bebas untuk ESP32 (Contoh: GPIO 4, 16, dan 17)
 const int DHT_PINS[3] = {4, 16, 17};

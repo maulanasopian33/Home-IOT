@@ -26,6 +26,7 @@ void DHTService::begin() {
     sensors[i].isAvailable = false;
     sensors[i].sampleIndex = 0;
     sensors[i].failedReads = 0;
+    sensors[i].pauseUntilMs = 0; // 0 = aktif, tidak dalam periode pause
 
     // Inisialisasi awal array history dengan 0
     for(int j = 0; j < 5; j++) {
@@ -75,6 +76,19 @@ void DHTService::handle() {
   float currentOffset = appConfig.getTempOffsetFloat();
 
   for (int i = 0; i < 3; i++) {
+    // --- DYNAMIC SENSOR: Auto-pause & Auto-recovery ---
+    if (sensors[i].pauseUntilMs > 0) {
+      if (currentMillis < sensors[i].pauseUntilMs) {
+        // Sensor sedang di-pause, skip tanpa blocking read
+        continue;
+      } else {
+        // Periode pause habis — coba lagi (auto-recovery jika sensor baru dicolok)
+        sensors[i].pauseUntilMs = 0;
+        sensors[i].failedReads = 0;
+        Serial.printf("[DHT] Mencoba auto-recovery sensor %s...\n", sensors[i].idSensor.c_str());
+      }
+    }
+
     // Feed WDT sebelum setiap pembacaan: DHT11 bisa blocking ~1.2 detik/sensor saat pin kosong
     esp_task_wdt_reset();
     float rawH = sensors[i].dhtPointer->readHumidity();
@@ -88,11 +102,17 @@ void DHTService::handle() {
     // Filter anti-glitch. Buang jika NaN atau bernilai 0
     if (isnan(rawH) || isnan(rawT) || rawH <= 1.0 || rawT <= 1.0) {
       sensors[i].failedReads++;
-      if (sensors[i].failedReads >= 3) { // Toleransi gagal baca 3 kali beruntun
-        if (sensors[i].isAvailable) {
-          sensors[i].isAvailable = false;
-          Serial.printf("[DHT] Sensor %s TERPUTUS atau DATA INVALID!\n", sensors[i].idSensor.c_str());
-        }
+      if (sensors[i].isAvailable) {
+        sensors[i].isAvailable = false;
+        Serial.printf("[DHT] Sensor %s TERPUTUS atau DATA INVALID!\n", sensors[i].idSensor.c_str());
+      }
+      // Setelah MAX_SENSOR_FAIL gagal berturut-turut, masuk mode pause
+      // Sensor tidak akan di-baca selama SENSOR_RETRY_MS, lalu otomatis dicoba lagi
+      if (sensors[i].failedReads >= MAX_SENSOR_FAIL) {
+        sensors[i].pauseUntilMs = currentMillis + SENSOR_RETRY_MS;
+        sensors[i].failedReads = 0; // Reset counter agar hitungan bersih saat retry
+        Serial.printf("[DHT] Sensor %s di-pause %d detik. Akan dicoba lagi otomatis.\n",
+          sensors[i].idSensor.c_str(), SENSOR_RETRY_MS / 1000);
       }
       continue; 
     }

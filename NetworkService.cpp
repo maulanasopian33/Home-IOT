@@ -255,20 +255,28 @@ void NetworkService::handleSync() {
 }
 
 void NetworkService::begin() {
-  // Tambahkan parameter kustom
+  // Tambahkan parameter kustom untuk dikonfigurasi via WiFiManager portal
   wm.setSaveConfigCallback(saveConfigCallback);
   wm.addParameter(&custom_api_url);
   wm.addParameter(&custom_api_health_url);
   wm.addParameter(&custom_temp_offset);
   
+  // KUNCI NON-BLOCKING:
+  // 1. setConnectTimeout(10): Hanya coba konek ke AP tersimpan selama 10 detik.
+  //    Jika gagal, langsung lanjut ke config portal (tidak hang 60 detik).
+  // 2. setConfigPortalBlocking(false): Portal AP berjalan di background.
+  //    Setelah autoConnect() return, wm.process() di handle() yang menjaga portal tetap hidup.
+  wm.setConnectTimeout(10);
   wm.setConfigPortalBlocking(false);
   
   if(wm.autoConnect(AP_NAME)) {
-    Serial.println("[Network] Koneksi tersimpan berhasil.");
+    Serial.println("[Network] Koneksi WiFi tersimpan berhasil.");
   } else {
-    Serial.println("[Network] Menunggu WiFiManager Portal...");
+    Serial.println("[Network] WiFi tidak ditemukan. Config portal aktif di: 192.168.4.1");
+    Serial.println("[Network] Sistem sensor tetap berjalan dalam mode offline.");
   }
 }
+
 
 void NetworkService::handle() {
   wm.process(); 
