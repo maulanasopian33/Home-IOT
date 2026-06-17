@@ -219,11 +219,30 @@ void NetworkService::syncOfflineData() {
 
 void NetworkService::initOTA() {
   ArduinoOTA.setHostname(OTA_HOSTNAME);
-  ArduinoOTA.onStart([]() { Serial.println("[OTA] Update..."); });
-  ArduinoOTA.onEnd([]() { Serial.println("\n[OTA] Update Selesai!"); });
+  ArduinoOTA.setPassword(OTA_PASSWORD); // PENTING: password harus cocok dengan --auth= di espota.exe
+  ArduinoOTA.onStart([]() {
+    String type = (ArduinoOTA.getCommand() == U_FLASH) ? "firmware" : "filesystem";
+    Serial.printf("[OTA] Memulai update %s...\n", type.c_str());
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\n[OTA] Update Selesai! Mereboot...");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("[OTA] Progress: %u%%\r", (progress * 100) / total);
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("[OTA] Error[%u]: ", error);
+    if      (error == OTA_AUTH_ERROR)    Serial.println("Auth gagal! Cek password OTA.");
+    else if (error == OTA_BEGIN_ERROR)   Serial.println("Begin gagal.");
+    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect gagal.");
+    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive gagal.");
+    else if (error == OTA_END_ERROR)     Serial.println("End gagal.");
+  });
   ArduinoOTA.begin();
+  Serial.printf("[OTA] Siap. Hostname: %s | Port: 3232\n", OTA_HOSTNAME);
   otaReady = true;
 }
+
 
 void NetworkService::initWebServer() {
   server.on("/", [this]() { handleRoot(); });
