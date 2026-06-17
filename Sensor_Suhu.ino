@@ -9,7 +9,7 @@
 #include "DHTService.h"
 #include "LEDService.h"
 
-#define WDT_TIMEOUT 15 // 15 Detik toleransi sebelum ESP auto-reboot
+#define WDT_TIMEOUT 30 // 30 Detik toleransi (DHT read 3 sensor bisa blocking 6-12 detik)
 
 // Inisialisasi layanan jaringan dan modul sensor
 NetworkService network;
@@ -116,10 +116,13 @@ void TaskSensor(void *pvParameters) {
   esp_task_wdt_add(NULL);
 
   for(;;) {
-    esp_task_wdt_reset();
+    esp_task_wdt_reset(); // Feed WDT di awal loop
     
-    // Baca sensor dengan tingkat presisi tinggi
+    // Baca sensor: DHT11 bisa blocking ~1-2 detik per sensor jika pin tidak ada sensor
+    // esp_task_wdt_reset() dipanggil di dalam DHTService::handle() per-sensor
     dhtModule.handle();
+    
+    esp_task_wdt_reset(); // Feed WDT lagi setelah selesai semua pembacaan sensor
 
     // Logika Indikator LED Dinamis (Sudah Terpisah)
     ledIndicator.handle(WiFi.status() == WL_CONNECTED, network.getQueueCountFast());

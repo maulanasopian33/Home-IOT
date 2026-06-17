@@ -75,6 +75,8 @@ void DHTService::handle() {
   float currentOffset = appConfig.getTempOffsetFloat();
 
   for (int i = 0; i < 3; i++) {
+    // Feed WDT sebelum setiap pembacaan: DHT11 bisa blocking ~1.2 detik/sensor saat pin kosong
+    esp_task_wdt_reset();
     float rawH = sensors[i].dhtPointer->readHumidity();
     float rawT = sensors[i].dhtPointer->readTemperature();
 
