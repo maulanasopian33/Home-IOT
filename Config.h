@@ -10,8 +10,11 @@ const char* AP_NAME      = "ESP32-Config-AP";
 // ==========================================
 // PENGATURAN API
 // ==========================================
-// Ganti dengan URL server API Anda
+// URL untuk pengiriman data sensor (Data Utama)
 const char* API_URL = "https://maulanasopian.my.id/api.php"; 
+
+// URL untuk pengiriman data status/health perangkat (Rekomendasi pemisahan route)
+const char* API_HEALTH_URL = "https://maulanasopian.my.id/api_health.php";
 
 // ==========================================
 // PENGATURAN WAKTU (NTP)
@@ -19,6 +22,11 @@ const char* API_URL = "https://maulanasopian.my.id/api.php";
 const char* NTP_SERVER = "pool.ntp.org";
 const long  GMT_OFFSET_SEC = 25200;  // WIB (UTC+7) -> 7 * 3600
 const int   DAYLIGHT_OFFSET_SEC = 0; // Tidak ada DST di Indonesia
+
+// ==========================================
+// PENGATURAN HEALTH CHECK & HEARTBEAT
+// ==========================================
+const long HEARTBEAT_INTERVAL = 900000; // Kirim status setiap 15 menit (900.000 ms)
 
 // ==========================================
 // PENGATURAN HARDWARE (PIN & PARAMETER)

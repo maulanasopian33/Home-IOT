@@ -67,6 +67,51 @@ public: // <--- Semua fungsi di bawah ini sekarang bisa diakses dari Main.ino
       return String(timeStr);
     }
 
+  int getOfflineQueueCount() {
+    if (!LittleFS.exists(offlineQueueFile)) return 0;
+    File file = LittleFS.open(offlineQueueFile, FILE_READ);
+    if (!file) return 0;
+    int count = 0;
+    while (file.available()) {
+      if (file.read() == '\n') count++;
+    }
+    file.close();
+    return count;
+  }
+
+  void sendHealthCheck(String sensorStatusJSON) {
+    if (WiFi.status() == WL_CONNECTED) {
+      HTTPClient http;
+      http.begin(API_HEALTH_URL);
+      http.addHeader("Content-Type", "application/json");
+
+      String payload = "{";
+      payload += "\"ip\":\"" + WiFi.localIP().toString() + "\",";
+      payload += "\"hostname\":\"" + String(OTA_HOSTNAME) + "\",";
+      payload += "\"status\":\"HEALTH_CHECK\",";
+      
+      String waktu = getTimeString();
+      if (waktu != "") {
+        payload += "\"tanggal\":\"" + waktu + "\",";
+      }
+
+      payload += "\"uptime_sec\":" + String(millis() / 1000) + ",";
+      payload += "\"free_heap_kb\":" + String(ESP.getFreeHeap() / 1024) + ",";
+      payload += "\"wifi_rssi\":" + String(WiFi.RSSI()) + ",";
+      payload += "\"pending_queue_count\":" + String(getOfflineQueueCount()) + ",";
+      payload += "\"sensors\":" + sensorStatusJSON;
+      payload += "}";
+
+      int httpCode = http.POST(payload);
+      if (httpCode > 0) {
+        Serial.printf("[Health] Berhasil mengirim heartbeat. Kode: %d\n", httpCode);
+      } else {
+        Serial.printf("[Health] Gagal mengirim heartbeat. Error: %s\n", http.errorToString(httpCode).c_str());
+      }
+      http.end();
+    }
+  }
+
   // Fungsi pengirim tunggal (Sekarang sudah PUBLIC)
   void sendDataToAPI(const char* statusAplikasi, String idSensor = "", float suhu = -999.0, float hum = -999.0) {
     // Format dasar JSON (Kirim IP, Hostname, Status)

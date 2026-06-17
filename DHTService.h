@@ -64,6 +64,20 @@ public:
     onDataChangeCallback = callback;
   }
 
+  String getSensorsStatusJSON() {
+    String json = "[";
+    for (int i = 0; i < 3; i++) {
+      json += "{";
+      json += "\"id\":\"" + sensors[i].idSensor + "\",";
+      json += "\"is_available\":" + String(sensors[i].isAvailable ? "true" : "false") + ",";
+      json += "\"failed_reads\":" + String(sensors[i].failedReads);
+      json += "}";
+      if (i < 2) json += ",";
+    }
+    json += "]";
+    return json;
+  }
+
   void handle() {
     unsigned long currentMillis = millis();
     

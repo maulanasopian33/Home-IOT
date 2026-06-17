@@ -18,6 +18,7 @@ DHTService dhtModule;      // <-- INITIALISASI MODUL DHT
 
 // Variabel Aplikasi
 unsigned long previousMillis = 0;
+unsigned long previousHeartbeatMillis = 0;
 int ledState = LOW;
 
 // --- JEMBATAN EVENT (CALLBACK) ---
@@ -59,6 +60,7 @@ void loop() {
 
   // 3. Logika Aplikasi Anda (Hardware / Sensor)
   jalankanBlink();
+  jalankanHeartbeat();
 }
 
 // --- FUNGSI APLIKASI ---
@@ -68,5 +70,19 @@ void jalankanBlink() {
     previousMillis = currentMillis;
     ledState = !ledState;
     digitalWrite(LED_PIN, ledState);
+  }
+}
+
+void jalankanHeartbeat() {
+  unsigned long currentMillis = millis();
+  // Tunggu 10 detik pertama agar WiFi dan NTP siap, setelah itu ikuti interval heartbeat
+  if (currentMillis - previousHeartbeatMillis >= HEARTBEAT_INTERVAL || (previousHeartbeatMillis == 0 && currentMillis > 10000)) {
+    previousHeartbeatMillis = currentMillis;
+    
+    // Dapatkan status dari semua sensor DHT
+    String sensorStatus = dhtModule.getSensorsStatusJSON();
+    
+    // Minta network module merakit dan mengirimkan laporan health
+    network.sendHealthCheck(sensorStatus);
   }
 }
