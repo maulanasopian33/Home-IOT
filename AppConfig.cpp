@@ -4,8 +4,8 @@ AppConfig appConfig;
 
 AppConfig::AppConfig() {
     // Default values
-    strcpy(apiUrl, "https://maulanasopian.my.id/api.php");
-    strcpy(apiHealthUrl, "https://maulanasopian.my.id/api_health.php");
+    strcpy(apiUrl, "https://your-domain.com/api.php");
+    strcpy(apiHealthUrl, "https://your-domain.com/api_health.php");
     strcpy(tempOffset, "-5.0");
 }
 

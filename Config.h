@@ -3,7 +3,7 @@
 // ==========================================
 // PENGATURAN KREDENSIAL & JARINGAN
 // ==========================================
-const char* OTA_HOSTNAME = "esp32-mending-coding";
+const char* OTA_HOSTNAME = "esp32-sensor-node";
 const char* OTA_PASSWORD = "admin";
 const char* AP_NAME      = "ESP32-Config-AP";
 
