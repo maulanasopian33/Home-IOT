@@ -1,30 +1,25 @@
-#include <AsyncUDP.h>
-#include <ESPmDNS.h>
-#include <WiFiUdp.h>
-#include <WiFi.h>
-#include <HTTPClient.h>
-#include <ArduinoOTA.h>
-#include <WiFiManager.h> 
-#include <DHT.h>           // <-- TAMBAHKAN LIBRARY SENSOR DHT
-#include <LittleFS.h>      // <-- TAMBAHKAN LIBRARY PENYIMPANAN OFFLINE
+#include <Arduino.h>
+#include <LittleFS.h>
+#include <esp_task_wdt.h>
 
 #include "Config.h"
+#include "AppConfig.h"
 #include "NetworkService.h"
-#include "DHTService.h"    // <-- TAMBAHKAN FILE MODUL SENSOR
+#include "DHTService.h"
+
+#define WDT_TIMEOUT 15 // 15 Detik toleransi sebelum ESP auto-reboot
 
 // Inisialisasi layanan jaringan dan modul sensor
 NetworkService network;
-DHTService dhtModule;      // <-- INITIALISASI MODUL DHT
+DHTService dhtModule;
 
-// Variabel Aplikasi
-unsigned long previousMillis = 0;
-unsigned long previousHeartbeatMillis = 0;
-int ledState = LOW;
+// Deklarasi Task
+void TaskNetwork(void *pvParameters);
+void TaskSensor(void *pvParameters);
 
-// --- JEMBATAN EVENT (CALLBACK) ---
 // Fungsi ini otomatis berjalan saat modul DHT mendeteksi sensor dicolok atau suhu berubah
 void onSensorChange(String id, float temp, float hum) {
-  // Mengirim riwayat sensor ke api.php dengan status "DHT_UPDATE"
+  // Hanya push ke queue. TaskNetwork yang akan kirim HTTP secara asinkron.
   network.sendDataToAPI("DHT_UPDATE", id, temp, hum);
 }
 
@@ -32,57 +27,98 @@ void setup() {
   Serial.begin(115200);
   pinMode(LED_PIN, OUTPUT);
   
-  // Inisialisasi File System (LittleFS)
+  // 1. Inisialisasi Watchdog Timer (Perlindungan Crash)
+  esp_task_wdt_init(WDT_TIMEOUT, true); // true = panic (reboot)
+
+  // 2. Inisialisasi File System & Konfigurasi
   if (!LittleFS.begin(true)) {
     Serial.println("[Storage] Error: Gagal me-mount LittleFS!");
   } else {
     Serial.println("[Storage] LittleFS berhasil di-mount.");
   }
+  appConfig.load(); // Load parameter dari LittleFS
 
-  // 1. Jalankan infrastruktur jaringan di background
+  // 3. Daftarkan callback sensor
+  dhtModule.onDataChange(onSensorChange);
+
+  // 4. Inisialisasi Service dasar
   network.begin();
-
-  // 2. Jalankan modul multi-sensor DHT dinamis
   dhtModule.begin();
 
-  // 3. Daftarkan fungsi jembatan ke dalam modul DHT
-  dhtModule.onDataChange(onSensorChange);
-  
-  Serial.println("Sistem Aplikasi Utama Dimulai!");
+  // 5. Pembuatan FreeRTOS Tasks (Dual-Core)
+  xTaskCreatePinnedToCore(
+    TaskNetwork,   // Fungsi task
+    "TaskNetwork", // Nama task
+    8192,          // Stack size (WiFi dan HTTPClient butuh cukup besar)
+    NULL,          // Parameter
+    1,             // Priority
+    NULL,          // Task handle
+    0              // Dijalankan di Core 0 (Khusus Jaringan)
+  );
+
+  xTaskCreatePinnedToCore(
+    TaskSensor,
+    "TaskSensor",
+    4096,
+    NULL,
+    1,
+    NULL,
+    1              // Dijalankan di Core 1 (Khusus Sensor & Hardware)
+  );
+
+  Serial.println("[System] FreeRTOS Dual-Core Berhasil Berjalan!");
 }
 
+// Loop utama Arduino tidak dipakai agar memori bersih
 void loop() {
-  // 1. WAJIB: Biarkan layanan jaringan beroperasi
-  network.handle();
-
-  // 2. WAJIB: Biarkan modul DHT memantau pin secara non-blocking
-  dhtModule.handle();
-
-  // 3. Logika Aplikasi Anda (Hardware / Sensor)
-  jalankanBlink();
-  jalankanHeartbeat();
+  vTaskDelete(NULL);
 }
 
-// --- FUNGSI APLIKASI ---
-void jalankanBlink() {
-  unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis >= BLINK_INTERVAL) {
-    previousMillis = currentMillis;
-    ledState = !ledState;
-    digitalWrite(LED_PIN, ledState);
+// ==========================================
+// FREERTOS TASKS
+// ==========================================
+
+void TaskNetwork(void *pvParameters) {
+  esp_task_wdt_add(NULL); // Daftarkan task ini ke sistem pengawas WDT
+  unsigned long previousHeartbeatMillis = 0;
+
+  for(;;) {
+    esp_task_wdt_reset(); // Beri makan WDT agar tidak reboot
+    
+    // Proses semua infrastruktur jaringan (OTA, Sync Queue, Web Server)
+    network.handle();
+
+    // Heartbeat Status API
+    unsigned long currentMillis = millis();
+    if (currentMillis - previousHeartbeatMillis >= HEARTBEAT_INTERVAL || (previousHeartbeatMillis == 0 && currentMillis > 10000)) {
+      previousHeartbeatMillis = currentMillis;
+      String sensorStatus = dhtModule.getSensorsStatusJSON();
+      network.sendHealthCheck(sensorStatus);
+    }
+    
+    vTaskDelay(10 / portTICK_PERIOD_MS); // Istirahatkan core agar tidak overheat
   }
 }
 
-void jalankanHeartbeat() {
-  unsigned long currentMillis = millis();
-  // Tunggu 10 detik pertama agar WiFi dan NTP siap, setelah itu ikuti interval heartbeat
-  if (currentMillis - previousHeartbeatMillis >= HEARTBEAT_INTERVAL || (previousHeartbeatMillis == 0 && currentMillis > 10000)) {
-    previousHeartbeatMillis = currentMillis;
+void TaskSensor(void *pvParameters) {
+  esp_task_wdt_add(NULL);
+  unsigned long previousMillis = 0;
+  int ledState = LOW;
+
+  for(;;) {
+    esp_task_wdt_reset();
     
-    // Dapatkan status dari semua sensor DHT
-    String sensorStatus = dhtModule.getSensorsStatusJSON();
-    
-    // Minta network module merakit dan mengirimkan laporan health
-    network.sendHealthCheck(sensorStatus);
+    // Baca sensor dengan tingkat presisi tinggi
+    dhtModule.handle();
+
+    // Logika Blink LED
+    unsigned long currentMillis = millis();
+    if (currentMillis - previousMillis >= BLINK_INTERVAL) {
+      previousMillis = currentMillis;
+      ledState = !ledState;
+      digitalWrite(LED_PIN, ledState);
+    }
+
+    vTaskDelay(10 / portTICK_PERIOD_MS);
   }
 }

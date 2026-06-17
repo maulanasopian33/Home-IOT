@@ -8,13 +8,8 @@ const char* OTA_PASSWORD = "admin";
 const char* AP_NAME      = "ESP32-Config-AP";
 
 // ==========================================
-// PENGATURAN API
+// PENGATURAN API (Sekarang diurus oleh AppConfig via WiFiManager)
 // ==========================================
-// URL untuk pengiriman data sensor (Data Utama)
-const char* API_URL = "https://maulanasopian.my.id/api.php"; 
-
-// URL untuk pengiriman data status/health perangkat (Rekomendasi pemisahan route)
-const char* API_HEALTH_URL = "https://maulanasopian.my.id/api_health.php";
 
 // ==========================================
 // PENGATURAN WAKTU (NTP)
@@ -36,9 +31,6 @@ const long BLINK_INTERVAL = 500;
 
 // --- TAMBAHAN UNTUK DHT ---
 const long DHT_INTERVAL = 5000; // Baca sensor setiap 5 detik (mengurangi gagal baca dan self-heating)
-
-// Nilai offset kalibrasi suhu (contoh: kurangi 5 derajat)
-const float TEMP_OFFSET = -5.0;
 
 // Tentukan 3 pin GPIO bebas untuk ESP32 (Contoh: GPIO 4, 16, dan 17)
 const int DHT_PINS[3] = {4, 16, 17};
