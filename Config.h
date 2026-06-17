@@ -20,7 +20,10 @@ const int LED_PIN = 2;
 const long BLINK_INTERVAL = 500;
 
 // --- TAMBAHAN UNTUK DHT ---
-const long DHT_INTERVAL = 2000; // Baca sensor setiap 2 detik
+const long DHT_INTERVAL = 5000; // Baca sensor setiap 5 detik (mengurangi gagal baca dan self-heating)
+
+// Nilai offset kalibrasi suhu (contoh: kurangi 5 derajat)
+const float TEMP_OFFSET = -5.0;
 
 // Tentukan 3 pin GPIO bebas untuk ESP32 (Contoh: GPIO 4, 16, dan 17)
 const int DHT_PINS[3] = {4, 16, 17};
