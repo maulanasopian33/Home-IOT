@@ -3,9 +3,9 @@
 // ==========================================
 // PENGATURAN KREDENSIAL & JARINGAN
 // ==========================================
-const char* OTA_HOSTNAME = "esp32-sensor-node";
-const char* OTA_PASSWORD = "admin";
-const char* AP_NAME      = "ESP32-Config-AP";
+constexpr const char* OTA_HOSTNAME = "esp32-sensor-node";
+constexpr const char* OTA_PASSWORD = "admin";
+constexpr const char* AP_NAME      = "ESP32-Config-AP";
 
 // ==========================================
 // PENGATURAN API (Sekarang diurus oleh AppConfig via WiFiManager)
@@ -14,7 +14,7 @@ const char* AP_NAME      = "ESP32-Config-AP";
 // ==========================================
 // PENGATURAN WAKTU (NTP)
 // ==========================================
-const char* NTP_SERVER = "pool.ntp.org";
+constexpr const char* NTP_SERVER = "pool.ntp.org";
 const long  GMT_OFFSET_SEC = 25200;  // WIB (UTC+7) -> 7 * 3600
 const int   DAYLIGHT_OFFSET_SEC = 0; // Tidak ada DST di Indonesia
 

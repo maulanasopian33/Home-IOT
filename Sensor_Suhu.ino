@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <LittleFS.h>
 #include <esp_task_wdt.h>
+#include <esp_idf_version.h>
 
 #include "Config.h"
 #include "AppConfig.h"
@@ -29,8 +30,17 @@ void setup() {
   Serial.begin(115200);
   ledIndicator.begin();
   
-  // 1. Inisialisasi Watchdog Timer (Perlindungan Crash)
+  // 1. Inisialisasi Watchdog Timer (Perlindungan Crash - Dukungan Cross-Version Core v2 dan v3)
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+  esp_task_wdt_config_t wdt_config = {
+    .timeout_ms = WDT_TIMEOUT * 1000,
+    .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,    // Memantau semua core
+    .trigger_panic = true
+  };
+  esp_task_wdt_init(&wdt_config);
+#else
   esp_task_wdt_init(WDT_TIMEOUT, true); // true = panic (reboot)
+#endif
 
   // 2. Inisialisasi File System & Konfigurasi
   if (!LittleFS.begin(true)) {
