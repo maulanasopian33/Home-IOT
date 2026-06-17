@@ -49,6 +49,7 @@ public:
   void begin();
   void handle();
   int getOfflineQueueCount();
+  int getQueueCountFast() const { return (offlineQueueCount == -1) ? 0 : offlineQueueCount; }
   void sendHealthCheck(String sensorStatusJSON);
   void sendDataToAPI(const char* statusAplikasi, String idSensor = "", float suhu = -999.0, float hum = -999.0);
 };

@@ -6,12 +6,14 @@
 #include "AppConfig.h"
 #include "NetworkService.h"
 #include "DHTService.h"
+#include "LEDService.h"
 
 #define WDT_TIMEOUT 15 // 15 Detik toleransi sebelum ESP auto-reboot
 
 // Inisialisasi layanan jaringan dan modul sensor
 NetworkService network;
 DHTService dhtModule;
+LEDService ledIndicator(LED_PIN);
 
 // Deklarasi Task
 void TaskNetwork(void *pvParameters);
@@ -25,7 +27,7 @@ void onSensorChange(String id, float temp, float hum) {
 
 void setup() {
   Serial.begin(115200);
-  pinMode(LED_PIN, OUTPUT);
+  ledIndicator.begin();
   
   // 1. Inisialisasi Watchdog Timer (Perlindungan Crash)
   esp_task_wdt_init(WDT_TIMEOUT, true); // true = panic (reboot)
@@ -102,8 +104,6 @@ void TaskNetwork(void *pvParameters) {
 
 void TaskSensor(void *pvParameters) {
   esp_task_wdt_add(NULL);
-  unsigned long previousMillis = 0;
-  int ledState = LOW;
 
   for(;;) {
     esp_task_wdt_reset();
@@ -111,13 +111,8 @@ void TaskSensor(void *pvParameters) {
     // Baca sensor dengan tingkat presisi tinggi
     dhtModule.handle();
 
-    // Logika Blink LED
-    unsigned long currentMillis = millis();
-    if (currentMillis - previousMillis >= BLINK_INTERVAL) {
-      previousMillis = currentMillis;
-      ledState = !ledState;
-      digitalWrite(LED_PIN, ledState);
-    }
+    // Logika Indikator LED Dinamis (Sudah Terpisah)
+    ledIndicator.handle(WiFi.status() == WL_CONNECTED, network.getQueueCountFast());
 
     vTaskDelay(10 / portTICK_PERIOD_MS);
   }
