@@ -39,6 +39,10 @@ void DHTService::begin() {
     sensors[i].dhtPointer->begin();
   }
   Serial.println("[DHT] Sistem Multi-Sensor Siap dengan Filter Moving Average.");
+  
+  // PENTING: Tunda pembacaan pertama selama DHT_INTERVAL agar tidak bertabrakan 
+  // dengan inisialisasi Flash/NVS oleh WiFiManager di Core 0.
+  previousMillis = millis();
 }
 
 void DHTService::onDataChange(void (*callback)(String, float, float)) {
@@ -147,5 +151,10 @@ void DHTService::handle() {
       Serial.printf("[DHT] Perubahan data stabil terdeteksi pada %s\n", sensors[i].idSensor.c_str());
       triggerUpdate(i, filteredT, filteredH);
     }
+
+    // PENTING: Berikan jeda (yield) antar pembacaan sensor.
+    // Membaca DHT memblokir interupsi sementara. Jeda 50ms ini memberi waktu
+    // bagi Core 1 untuk memproses IPC dari Core 0 (seperti aksi simpan config WiFi ke Flash).
+    vTaskDelay(50 / portTICK_PERIOD_MS);
   }
 }
