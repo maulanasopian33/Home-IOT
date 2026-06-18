@@ -72,6 +72,12 @@ String DHTService::getSensorsStatusJSON() {
 void DHTService::handle() {
   unsigned long currentMillis = millis();
   
+  // PENTING: Tunda pembacaan sensor selama 15 detik pertama sejak boot.
+  // WiFiManager melakukan operasi akses NVS/Flash (Core 0) pada awal boot 
+  // yang memicu Inter-Processor Call (IPC). Jika bersamaan dengan 
+  // DHT read yang mengunci interupsi di Core 1, akan memicu WDT Panic!
+  if (currentMillis < 15000) return;
+  
   // PENTING: Pastikan DHT_INTERVAL di Config.h minimal bernilai 2000 (2 detik)
   if (currentMillis - previousMillis < DHT_INTERVAL) return;
   previousMillis = currentMillis;
