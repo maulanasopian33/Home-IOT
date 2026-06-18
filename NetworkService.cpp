@@ -173,9 +173,9 @@ void NetworkService::syncOfflineData() {
 
     String firstLine = inFile.readStringUntil('\n');
     firstLine.trim();
+    inFile.close(); // <-- PENTING: Tutup file sebelum melepas mutex
 
     if (firstLine.length() == 0) {
-      inFile.close();
       xSemaphoreGive(fsMutex);
       return;
     }
