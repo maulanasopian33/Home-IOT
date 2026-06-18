@@ -7,7 +7,7 @@ void saveConfigCallback() {
   shouldSaveConfig = true;
 }
 
-NetworkService::NetworkService() : server(80), 
+NetworkService::NetworkService() : server(8080), 
   custom_api_url("api_url", "API URL (Sensor)", appConfig.apiUrl, 128),
   custom_api_health_url("api_health", "API Health URL", appConfig.apiHealthUrl, 128),
   custom_temp_offset("temp_offset", "Suhu Offset (Cth: -5.0)", appConfig.tempOffset, 10)
@@ -246,11 +246,15 @@ void NetworkService::initOTA() {
 }
 
 
+static bool webServerStarted = false;
 void NetworkService::initWebServer() {
+  if (webServerStarted) return; // Mencegah server.begin() dipanggil berkali-kali saat reconnect
+  
   server.on("/", [this]() { handleRoot(); });
   server.on("/sync", [this]() { handleSync(); });
-  server.begin();
-  Serial.println("[Web] Dashboard lokal berjalan di port 80");
+  server.begin(8080); // Gunakan port 8080 agar tidak bentrok dengan WiFiManager (Port 80)
+  Serial.println("[Web] Dashboard lokal berjalan di port 8080");
+  webServerStarted = true;
 }
 
 void NetworkService::handleRoot() {
