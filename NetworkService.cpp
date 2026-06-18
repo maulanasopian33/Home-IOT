@@ -80,6 +80,7 @@ void NetworkService::sendHealthCheck(String sensorStatusJSON) {
     HTTPClient http;
     http.begin(client, appConfig.apiHealthUrl);
     http.addHeader("Content-Type", "application/json");
+    http.setTimeout(3000); // Mencegah blok CPU > 3 detik (WDT default 5 detik)
 
     #if ARDUINOJSON_VERSION_MAJOR >= 7
     JsonDocument doc;
@@ -185,6 +186,7 @@ void NetworkService::syncOfflineData() {
     HTTPClient http;
     http.begin(client, appConfig.apiUrl);
     http.addHeader("Content-Type", "application/json");
+    http.setTimeout(3000); // Mencegah blok CPU > 3 detik (WDT default 5 detik)
     
     int httpCode = http.POST(firstLine);
     bool success = (httpCode > 0);

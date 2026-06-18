@@ -37,9 +37,8 @@ void setup() {
     .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,
     .trigger_panic = true
   };
-  esp_task_wdt_init(&wdt_config);
-#else
-  esp_task_wdt_init(WDT_TIMEOUT, true);
+  // Reconfigure karena di Core 3.x WDT mungkin sudah diinisialisasi otomatis
+  esp_task_wdt_reconfigure(&wdt_config);
 #endif
 
   // 2. Inisialisasi File System & Konfigurasi
@@ -92,14 +91,15 @@ void loop() {
 // ==========================================
 
 void TaskNetwork(void *pvParameters) {
-  esp_task_wdt_add(NULL);
-
   // network.begin() dipanggil di sini, di dalam task Core 0.
   // Ini akan memblok Core 0 max ~10 detik (WiFiManager connect timeout).
-  // Core 1 (TaskSensor) tidak terpengaruh dan langsung membaca sensor.
-  esp_task_wdt_reset();
+  // JANGAN mendaftarkan task ini ke WDT sebelum network.begin() selesai,
+  // karena default WDT timeout adalah 5 detik (akan menyebabkan crash).
   network.begin();
-  esp_task_wdt_reset();
+
+  // Setelah selesai inisialisasi jaringan (terlepas dari berhasil atau masuk AP mode),
+  // baru daftarkan task ini ke Watchdog Timer.
+  esp_task_wdt_add(NULL);
 
   unsigned long previousHeartbeatMillis = 0;
 
