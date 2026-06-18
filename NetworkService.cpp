@@ -332,6 +332,21 @@ void NetworkService::handle() {
   } else {
     if (isConnected) {
       isConnected = false;
+      Serial.println("\n[Network] WiFi Terputus! Beralih ke mode offline.");
+    }
+
+    // Auto-reconnect manual tanpa memblokir sistem (Non-blocking)
+    // Mencoba menyambung kembali setiap 30 detik jika ada kredensial yang tersimpan
+    static unsigned long lastReconnectAttempt = 0;
+    unsigned long currentMillis = millis(); // Pastikan currentMillis selalu ter-update
+    
+    if (currentMillis - lastReconnectAttempt >= 30000) {
+      lastReconnectAttempt = currentMillis;
+      // WiFi.SSID() mengambil nama WiFi terakhir yang tersimpan di NVS ESP32
+      if (WiFi.SSID().length() > 0) {
+        Serial.println("[Network] Mencoba auto-reconnect ke AP tersimpan: " + WiFi.SSID() + "...");
+        WiFi.begin(); // Memicu driver WiFi untuk mencoba konek di latar belakang
+      }
     }
   }
 }
