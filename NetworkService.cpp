@@ -342,10 +342,11 @@ void NetworkService::handle() {
     
     if (currentMillis - lastReconnectAttempt >= 30000) {
       lastReconnectAttempt = currentMillis;
-      // WiFi.SSID() mengambil nama WiFi terakhir yang tersimpan di NVS ESP32
-      if (WiFi.SSID().length() > 0) {
-        Serial.println("[Network] Mencoba auto-reconnect ke AP tersimpan: " + WiFi.SSID() + "...");
-        WiFi.begin(); // Memicu driver WiFi untuk mencoba konek di latar belakang
+      // wm.getWiFiSSID() membaca konfigurasi terakhir dari WiFiManager / NVS
+      String savedSSID = wm.getWiFiSSID();
+      if (savedSSID.length() > 0) {
+        Serial.println("[Network] Mencoba auto-reconnect ke AP tersimpan: " + savedSSID + "...");
+        WiFi.begin(savedSSID.c_str(), wm.getWiFiPass().c_str()); // Memicu driver WiFi untuk mencoba konek
       }
     }
   }
