@@ -276,6 +276,27 @@ void NetworkService::handleSync() {
 }
 
 void NetworkService::begin() {
+  // Update parameter dengan nilai terbaru dari AppConfig (yang baru saja di-load)
+  custom_api_url.setValue(appConfig.apiUrl, 128);
+  custom_api_health_url.setValue(appConfig.apiHealthUrl, 128);
+  custom_temp_offset.setValue(appConfig.tempOffset, 10);
+
+  // Styling Modern (Dark Mode) untuk Config Portal
+  const char* custom_css = "<style>"
+    "body { background-color: #121212; color: #ffffff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }"
+    ".wrap { max-width: 400px; margin: 40px auto; padding: 20px; background: #1e1e1e; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); text-align: center; }"
+    "h1, h2, h3 { color: #007bff; font-weight: bold; margin-bottom: 15px; }"
+    "button { background-color: #007bff; border: none; border-radius: 8px; padding: 12px 24px; color: white; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.3s ease; width: 100%; margin-bottom: 10px; }"
+    "button:hover { background-color: #0056b3; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,123,255,0.4); }"
+    "input[type='text'], input[type='password'] { width: 100%; border-radius: 8px; border: 1px solid #333; padding: 12px; background-color: #2d2d2d; color: #fff; margin-bottom: 15px; font-size: 14px; outline: none; transition: 0.3s; box-sizing: border-box; }"
+    "input[type='text']:focus, input[type='password']:focus { border-color: #007bff; box-shadow: 0 0 5px rgba(0,123,255,0.5); }"
+    "label { display: block; text-align: left; margin-bottom: 5px; font-size: 13px; color: #bbb; }"
+    "a { color: #007bff; text-decoration: none; }"
+    "a:hover { text-decoration: underline; }"
+    "div.msg { padding: 10px; border-radius: 8px; background: rgba(0, 123, 255, 0.1); border: 1px solid #007bff; margin-bottom: 15px; }"
+    "</style>";
+  wm.setCustomHeadElement(custom_css);
+
   // Tambahkan parameter kustom untuk dikonfigurasi via WiFiManager portal
   wm.setSaveConfigCallback(saveConfigCallback);
   wm.addParameter(&custom_api_url);
