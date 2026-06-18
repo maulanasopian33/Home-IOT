@@ -8,6 +8,66 @@ float DHTService::getAverage(float* array, int size) {
   return sum / size;
 }
 
+// Fungsi pembacaan DHT11 kustom yang TIDAK mematikan interupsi (noInterrupts/InterruptLock).
+// Mengeliminasi 100% kemungkinan WDT Panic akibat IPC dari WiFiManager/Dual-Core.
+bool readDHT11Safe(int pin, float &temp, float &hum) {
+  uint8_t data[5] = {0, 0, 0, 0, 0};
+
+  pinMode(pin, OUTPUT);
+  digitalWrite(pin, LOW);
+  delay(20); // Hold LOW untuk start signal DHT11
+  digitalWrite(pin, HIGH);
+  delayMicroseconds(30);
+  pinMode(pin, INPUT_PULLUP);
+
+  unsigned long timeout;
+  
+  // Tunggu DHT menarik LOW
+  timeout = micros();
+  while(digitalRead(pin) == HIGH) {
+    if (micros() - timeout > 100) return false;
+  }
+  
+  // Tunggu DHT melepas ke HIGH
+  timeout = micros();
+  while(digitalRead(pin) == LOW) {
+    if (micros() - timeout > 100) return false;
+  }
+  
+  // Tunggu DHT bersiap kirim data (LOW lagi)
+  timeout = micros();
+  while(digitalRead(pin) == HIGH) {
+    if (micros() - timeout > 100) return false;
+  }
+
+  // Baca 40 bit data
+  for (int i = 0; i < 40; i++) {
+    timeout = micros();
+    while(digitalRead(pin) == LOW) {
+      if (micros() - timeout > 100) return false;
+    }
+
+    unsigned long startHigh = micros();
+    while(digitalRead(pin) == HIGH) {
+      if (micros() - startHigh > 100) return false;
+    }
+    
+    // Jika HIGH lebih dari 40us, bit adalah 1
+    if ((micros() - startHigh) > 40) {
+      data[i / 8] |= (1 << (7 - (i % 8)));
+    }
+  }
+
+  // Cek Checksum
+  uint8_t sum = data[0] + data[1] + data[2] + data[3];
+  if (data[4] == sum) {
+    hum = data[0] + (data[1] * 0.1);
+    temp = data[2] + (data[3] * 0.1);
+    return true;
+  }
+  return false;
+}
+
 void DHTService::triggerUpdate(int index, float t, float h) {
   sensors[index].lastTemp = t;
   sensors[index].lastHum = h;
@@ -101,8 +161,11 @@ void DHTService::handle() {
 
     // Feed WDT sebelum setiap pembacaan: DHT11 bisa blocking ~1.2 detik/sensor saat pin kosong
     esp_task_wdt_reset();
-    float rawH = sensors[i].dhtPointer->readHumidity();
-    float rawT = sensors[i].dhtPointer->readTemperature();
+    // Membaca menggunakan custom safe function alih-alih dhtPointer->read() yang memblokir interupsi
+    float rawH = NAN;
+    float rawT = NAN;
+    
+    bool success = readDHT11Safe(sensors[i].pin, rawT, rawH);
 
     // Tambahkan offset kalibrasi jika pembacaan berhasil
     if (!isnan(rawT)) {
